@@ -63,6 +63,7 @@ func generateMessage(changes string) (Commit, error) {
 		context.Background(),
 		llm,
 		prompt,
+		llms.WithTemperature(0),
 	)
 	if err != nil {
 		return Commit{}, fmt.Errorf("LLM request failed: %w", err)
