@@ -13,7 +13,7 @@ import (
 )
 
 func getStagedChanges() (string, error) {
-	// Use git diff --cached -b to get staged changes ignoring whitespace
+	// git diff --cached -b gets staged changes, ignoring whitespace
 	cmd := exec.Command("git", "diff", "--cached", "-b")
 	output, err := cmd.Output()
 	if err != nil {
@@ -25,7 +25,6 @@ func getStagedChanges() (string, error) {
 		return "", fmt.Errorf("no staged changes found")
 	}
 
-	// Limit diff size for LLM (keep first 3KB)
 	if len(diff) > 3072 {
 		diff = diff[:3072] + "\n... (truncated)"
 	}
@@ -40,7 +39,7 @@ type Commit struct {
 }
 
 func generateMessage(changes string) (Commit, error) {
-	// Create LLM client - easily swap providers here
+	// Easily swap providers here by using another subpackage
 	llm, err := anthropic.New(
 		anthropic.WithModel("claude-3-5-haiku-latest"),
 		anthropic.WithToken(os.Getenv("ANTHROPIC_API_KEY")),
@@ -64,7 +63,6 @@ func generateMessage(changes string) (Commit, error) {
 		context.Background(),
 		llm,
 		prompt,
-		llms.WithTemperature(1),
 	)
 	if err != nil {
 		return Commit{}, fmt.Errorf("LLM request failed: %w", err)
@@ -84,8 +82,7 @@ func main() {
 		log.Fatalf("Failed to get staged changes: %v", err)
 	}
 
-	log.Printf("Staged diff found: %q", changes)
-	log.Printf("Generating message for changes")
+	log.Printf("Staged diff found; generating message for changes")
 
 	commit, err := generateMessage(changes)
 	if err != nil {
@@ -94,7 +91,6 @@ func main() {
 
 	log.Printf("Parsed commit: %+v", commit)
 
-	// Build conventional format
 	output := commit.Type
 	if commit.Scope != "" {
 		output += "(" + commit.Scope + ")"
