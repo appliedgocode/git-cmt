@@ -9,7 +9,7 @@ import (
 	"os/exec"
 
 	"github.com/tmc/langchaingo/llms"
-	"github.com/tmc/langchaingo/llms/openai"
+	"github.com/tmc/langchaingo/llms/anthropic"
 )
 
 func getStagedChanges() (string, error) {
@@ -41,9 +41,9 @@ type Commit struct {
 
 func generateMessage(changes string) (Commit, error) {
 	// Create LLM client - easily swap providers here
-	llm, err := openai.New(
-		openai.WithModel("gpt-5-mini-2025-08-07"),
-		openai.WithToken(os.Getenv("OPENAI_API_KEY")),
+	llm, err := anthropic.New(
+		anthropic.WithModel("claude-3-5-haiku-latest"),
+		anthropic.WithToken(os.Getenv("ANTHROPIC_API_KEY")),
 	)
 	if err != nil {
 		return Commit{}, fmt.Errorf("failed to create LLM client: %w", err)
