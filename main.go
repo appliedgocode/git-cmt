@@ -9,7 +9,7 @@ import (
 	"os/exec"
 
 	"github.com/tmc/langchaingo/llms"
-	"github.com/tmc/langchaingo/llms/anthropic"
+	"github.com/tmc/langchaingo/llms/openai"
 )
 
 func getStagedChanges() (string, error) {
@@ -38,11 +38,18 @@ type Commit struct {
 	Message string `json:"message"` // the actual description
 }
 
+func APIToken(path string) string {
+	gopass := exec.Command("gopass", path)
+	token, _ := gopass.Output() // leave error handling to caller
+	return string(token)
+}
+
 func generateMessage(changes string) (Commit, error) {
 	// Easily swap providers here by using another subpackage
-	llm, err := anthropic.New(
-		anthropic.WithModel("claude-3-5-haiku-latest"),
-		anthropic.WithToken(os.Getenv("ANTHROPIC_API_KEY")),
+	llm, err := openai.New(
+		openai.WithBaseURL("https://api.studio.nebius.com/v1/"),
+		openai.WithModel("mistralai/Devstral-Small-2505"),
+		openai.WithToken(APIToken("api/nebius/cli")),
 	)
 	if err != nil {
 		return Commit{}, fmt.Errorf("failed to create LLM client: %w", err)
@@ -86,19 +93,24 @@ func main() {
 	log.Printf("Staged diff found; generating message for changes")
 
 	commit, err := generateMessage(changes)
+	message := ""
 	if err != nil {
-		log.Fatalf("Failed to generate commit message: %v", err)
+		log.Printf("Failed to generate commit message: %v", err)
+	} else {
+		message = commit.Type
+		if commit.Scope != "" {
+			message += "(" + commit.Scope + ")"
+		}
+		message += ": " + commit.Message
+		log.Printf("Parsed commit: %+v", commit)
 	}
 
-	log.Printf("Parsed commit: %+v", commit)
-
-	output := commit.Type
-	if commit.Scope != "" {
-		output += "(" + commit.Scope + ")"
+	var cmd *exec.Cmd
+	if len(message) == 0 {
+		cmd = exec.Command("git", "commit", "-e")
+	} else {
+		cmd = exec.Command("git", "commit", "-e", "-m", message)
 	}
-	output += ": " + commit.Message
-
-	cmd := exec.Command("git", "commit", "-e", "-m", output)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
