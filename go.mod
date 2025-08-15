@@ -1,4 +1,4 @@
-module github.com/appliedgocode/commit-ai
+module github.com/appliedgocode/git-cmt
 
 go 1.25.0
 
