@@ -101,9 +101,12 @@ func main() {
 	}
 	output += ": " + commit.Message
 
-	fmt.Println("\n✨ Generated commit message:")
-	fmt.Println(output)
-
-	// Optional: copy to clipboard
-	fmt.Println("\nRun: git commit -m \"" + output + "\"")
+	cmd := exec.Command("git", "commit", "-e", "-m", output)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		log.Fatalf("Failed committing the changes: %s", err)
+	}
 }
