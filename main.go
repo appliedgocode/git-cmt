@@ -12,19 +12,17 @@ import (
 	"github.com/tmc/langchaingo/llms/openai"
 )
 
-func getStagedChanges() string {
+func getStagedChanges() (string, error) {
 	// Use git diff --cached -b to get staged changes ignoring whitespace
 	cmd := exec.Command("git", "diff", "--cached", "-b")
 	output, err := cmd.Output()
 	if err != nil {
-		log.Printf("Failed to get git diff: %v", err)
-		return ""
+		return "", fmt.Errorf("failed to get git diff: %w", err)
 	}
 
 	diff := string(output)
 	if diff == "" {
-		log.Printf("No staged changes found")
-		return ""
+		return "", fmt.Errorf("no staged changes found")
 	}
 
 	// Limit diff size for LLM (keep first 3KB)
@@ -32,8 +30,7 @@ func getStagedChanges() string {
 		diff = diff[:3072] + "\n... (truncated)"
 	}
 
-	log.Printf("Staged diff found: %q", diff)
-	return diff
+	return diff, nil
 }
 
 type Commit struct {
@@ -42,16 +39,14 @@ type Commit struct {
 	Message string `json:"message"` // the actual description
 }
 
-func generateMessage(changes string) Commit {
-	log.Printf("Generating message for changes: %q", changes)
-
+func generateMessage(changes string) (Commit, error) {
 	// Create LLM client - easily swap providers here
 	llm, err := openai.New(
 		openai.WithModel("gpt-5-mini-2025-08-07"),
 		openai.WithToken(os.Getenv("OPENAI_API_KEY")),
 	)
 	if err != nil {
-		log.Fatal("Failed to create LLM client:", err)
+		return Commit{}, fmt.Errorf("failed to create LLM client: %w", err)
 	}
 
 	prompt := fmt.Sprintf(`You are a git commit message generator.
@@ -65,8 +60,6 @@ func generateMessage(changes string) Commit {
     
     Return ONLY valid JSON, no other text.`, changes)
 
-	log.Printf("Sending prompt to LLM: %q", prompt)
-
 	resp, err := llms.GenerateFromSinglePrompt(
 		context.Background(),
 		llm,
@@ -74,30 +67,32 @@ func generateMessage(changes string) Commit {
 		llms.WithTemperature(1),
 	)
 	if err != nil {
-		log.Printf("LLM request failed: %v", err)
-		return Commit{}
+		return Commit{}, fmt.Errorf("LLM request failed: %w", err)
 	}
-
-	log.Printf("LLM response: %q", resp)
 
 	var commit Commit
 	if err := json.Unmarshal([]byte(resp), &commit); err != nil {
-		log.Printf("Failed to parse JSON response: %v", err)
-		log.Printf("Raw response was: %q", resp)
-		return Commit{}
+		return Commit{}, fmt.Errorf("failed to parse JSON response: %w (raw response: %q)", err, resp)
 	}
 
-	log.Printf("Parsed commit: %+v", commit)
-	return commit
+	return commit, nil
 }
 
 func main() {
-	changes := getStagedChanges()
-	if changes == "" {
-		log.Fatal("No staged changes")
+	changes, err := getStagedChanges()
+	if err != nil {
+		log.Fatalf("Failed to get staged changes: %v", err)
 	}
 
-	commit := generateMessage(changes)
+	log.Printf("Staged diff found: %q", changes)
+	log.Printf("Generating message for changes")
+
+	commit, err := generateMessage(changes)
+	if err != nil {
+		log.Fatalf("Failed to generate commit message: %v", err)
+	}
+
+	log.Printf("Parsed commit: %+v", commit)
 
 	// Build conventional format
 	output := commit.Type
