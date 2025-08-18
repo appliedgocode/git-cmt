@@ -6,9 +6,15 @@ An AI-powered Git commit message generator that analyzes your staged changes and
 
 git-cmt automatically generates meaningful commit messages based on your staged changes using Anthropic's Claude AI. It follows the [Conventional Commits](https://www.conventionalcommits.org/) specification and provides an interactive commit experience.
 
+This project was created for the [2025-08-17 issue of The Applied Go Weekly Newsletter](https://newsletter.appliedgo.net/archive/2025-08-17-commit-messages-that-write-themselves/)
+
+Feel free to play with the code to change providers and models, try different prompts, and more. It's just around 110 lines of code. 
+
+BTW, parts of this README are LLM-generated, so I apologize in advance for the verbosity, but I didn't want to cut down the amount of information too much, to increase the chance that you'll be finding what you're looking for. 
+
 ## Features
 
-- 🤖 **AI-powered**: Uses Claude 3.5 Haiku to analyze code changes
+- 🤖 **AI-powered**: Uses Claude 3.5 Haiku to analyze code changes (but you can switch models and providers using LangChainGo's selection of provider-specific sub-packages)
 - 📝 **Conventional Commits**: Generates messages following the `type(scope): description` format
 - 🎯 **Smart Analysis**: Understands code changes and creates contextually appropriate messages
 - ⚡ **Interactive**: Opens your editor for final review before committing
@@ -19,15 +25,23 @@ git-cmt automatically generates meaningful commit messages based on your staged 
 
 ### Prerequisites
 
-- Go 1.25.0 or later
+- Go 1.25.0 or later (surely works with earlier versions, too, just change the Go version in `go.mod` and test it out)
 - Git
-- Anthropic API key
+- An Anthropic API key (or, if you change the code to use another provider, their API key. Or, if you use a local AI... no API key)
 
 ### Build from source
 
+#### Without cloning the project
+
 ```bash
-git clone https://github.com/appliedgocode/commit-ai.git
-cd commit-ai
+go install github.com/appliedgocode/git-cmt
+```
+
+#### With cloning the project
+
+```bash
+git clone https://github.com/appliedgocode/git-cmt
+cd git-cmt
 go build -o git-cmt
 ```
 
@@ -47,17 +61,11 @@ sudo mv git-cmt /usr/local/bin/
    export ANTHROPIC_API_KEY="your-api-key-here"
    ```
 
-2. Add to your shell profile (`.bashrc`, `.zshrc`, etc.) for persistence:
-   ```bash
-   echo 'export ANTHROPIC_API_KEY="your-api-key-here"' >> ~/.zshrc
-   source ~/.zshrc
-   ```
-
 ### Basic Usage
 
 1. Stage your changes:
    ```bash
-   git add .
+   git add <whatever you have to add>
    ```
 
 2. Generate and commit:
@@ -88,6 +96,8 @@ type(scope): description
 **Scope**: Optional component/module name  
 **Description**: Clear, concise summary (max 50 chars)
 
+If you're new to Conventional Commits, [start here](https://www.conventionalcommits.org/en/v1.0.0/).
+
 ## Examples
 
 ### Feature Addition
@@ -115,11 +125,16 @@ $ ./git-cmt
 - `ANTHROPIC_API_KEY`: Required for Claude API access
 - `EDITOR`: Controls which editor opens for message review (defaults to system default)
 
-### Customization
+### Customization: Play with the code!
 
-The AI model and prompts can be modified in `main.go`:
-- Change `anthropic.WithModel()` to use different Claude models
-- Update the prompt template in `generateMessage()` for custom behavior
+- **Change the provider and/or model**
+	- Change `anthropic.WithModel()` to use different Claude models
+	- Use a different LangChainGo subpackage (`openai`, `ollama`,...) to switch the provider
+	- Use the `openai` package and `openai.WithURL()` to use an OpenAI-compatible API of a third-party provider
+- **Update the prompt template in `generateMessage()` for custom behavior**
+- **Let `git-cmt` present an empty commit message if the call to the LLM fails,** instead of erroring out
+- **Make provider and model configurable** in a config file
+- **Use a secrets manager to securely obtain the API key** instead of an environment variable
 
 ## Error Handling
 
@@ -132,7 +147,7 @@ The AI model and prompts can be modified in `main.go`:
 
 ### Dependencies
 
-- `github.com/tmc/langchaingo v0.1.13` - LLM integration
+- `github.com/tmc/langchaingo` - LLM integration
 - Claude AI via Anthropic API
 
 ### Project Structure
@@ -147,23 +162,8 @@ The AI model and prompts can be modified in `main.go`:
 ### Building
 
 ```bash
-go build -o git-cmt
+go build
 ```
-
-### Testing
-
-```bash
-go run main.go  # Run directly
-go build        # Build binary
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test with real commits
-5. Submit a pull request
 
 ## License
 
@@ -186,10 +186,3 @@ This project is open source. Check the repository for specific license details.
 
 **Editor not opening**
 - Set your preferred editor: `export EDITOR="code --wait"`
-
-### Debug Mode
-
-Run with verbose logging to see detailed output:
-```bash
-./git-cmt 2>&1 | tee debug.log
-```
