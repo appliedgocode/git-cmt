@@ -42,7 +42,7 @@ go install github.com/appliedgocode/git-cmt
 ```bash
 git clone https://github.com/appliedgocode/git-cmt
 cd git-cmt
-go build -o git-cmt
+go build
 ```
 
 ### Install globally
