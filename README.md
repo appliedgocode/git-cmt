@@ -48,8 +48,7 @@ go build
 ### Install globally
 
 ```bash
-# Move to a directory in your PATH
-sudo mv git-cmt /usr/local/bin/
+go install
 ```
 
 ## Usage
